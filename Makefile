@@ -1,58 +1,78 @@
-# Copyright (c) 2003, 2004 Seth W. Klein <sk@sethwklein.net>
-# Licensed under the Open Software License version 1.1
+# Copyright (c) 2003-2006 Seth W. Klein <sk@sethwklein.net>
+# Licensed under the Open Software License version 3.0
 # See the file COPYING in the distribution tarball or
-# http://www.opensource.org/licenses/osl-1.1.txt
+# http://www.opensource.org/licenses/osl-3.0.txt
 
 # Makefile: See README for usage
 
+DESTDIR=
 PREFIX=
-ETC_DIR=etc
+ETC_DIR=/etc
 
-.PHONY: all files get install clean dist \
-    protocol-numbers.iana port-numbers.iana
+AWK=gawk
+STRIP=no
+# STRIP=yes
+
+# sed -n 's/^\([^#:]*\):.*/\1/p' < Makefile | grep -v '^\(.PHONY\|.*-numbers.*\|protocols\|services\)$' | tr '\n' ' ' | sed 's/ $/\n/' | xclip
+.PHONY: all files get test test-services test-protocols install clean \
+	protocol-numbers.iana port-numbers.iana dist
 
 all: files
 files: protocols services
 
 get: protocol-numbers.iana port-numbers.iana
 
+test: test-protocols test-services
+
+test-services: services test-lib.gawk test-services.gawk
+	$(AWK) --re-interval -f test-lib.gawk -f test-services.gawk <services
+
+test-protocols: protocols test-lib.gawk test-protocols.gawk
+	$(AWK) -f test-lib.gawk -f test-protocols.gawk <protocols
+
 install: files
-	install -m 644 protocols ${PREFIX}/${ETC_DIR}
-	install -m 644 services ${PREFIX}/${ETC_DIR}
+	install -d $(DESTDIR)$(PREFIX)$(ETC_DIR)
+	install -m 644 protocols $(DESTDIR)$(PREFIX)$(ETC_DIR)
+	install -m 644 services $(DESTDIR)$(PREFIX)$(ETC_DIR)
 
 clean:
 	rm -vf \
 	    protocols services \
 	    protocol-numbers port-numbers \
-	    protocol-numbers.iana port-numbers.iana
+	    protocol-and-port-numbers.iana \
+	    protocol-numbers.iana \
+	    port-numbers.iana
 
-protocol-numbers.iana:
-	gawk -f get.gawk -v file=protocol-numbers >protocol-numbers.iana
+protocol-numbers.iana: get.gawk
+	# http://www.iana.org/assignments/protocol-numbers/protocol-numbers.txt
+	$(AWK) -f get.gawk -v path=/assignments/protocol-numbers/ -v file=protocol-numbers.txt > $@
 	rm -f protocol-numbers
 
-port-numbers.iana:
-	gawk -f get.gawk -v file=port-numbers >port-numbers.iana
+port-numbers.iana: get.gawk
+	# http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt
+	$(AWK) -f get.gawk -v path=/assignments/service-names-port-numbers/ -v file=service-names-port-numbers.txt > $@
 	rm -f port-numbers
 
 protocol-numbers:
 ifeq (protocol-numbers.iana, $(wildcard protocol-numbers.iana))
-	ln -s protocol-numbers.iana -f protocol-numbers
+	ln -f -s protocol-numbers.iana protocol-numbers
 else
-	ln -s protocol-numbers.dist -f protocol-numbers
+	ln -f -s protocol-numbers.dist protocol-numbers
 endif
 
 port-numbers:
 ifeq (port-numbers.iana, $(wildcard port-numbers.iana))
-	ln -s port-numbers.iana -f port-numbers
+	ln -f -s port-numbers.iana port-numbers
 else
-	ln -s port-numbers.dist -f port-numbers
+	ln -f -s port-numbers.dist port-numbers
 endif
 
-protocols: protocol-numbers
-	gawk --re-interval -f protocols.gawk protocol-numbers > protocols
+protocols: protocol-numbers protocols.gawk
+	$(AWK) --re-interval -f protocols.gawk -v strip=$(STRIP) \
+	    protocol-numbers > protocols
 
-services: port-numbers
-	gawk -f services.gawk port-numbers > services
+services: port-numbers services.gawk
+	$(AWK) -f services.gawk -v header_file="services.header" port-numbers > services
 
 dist: clean
 	rm -vrf ../iana-etc-`cat VERSION`

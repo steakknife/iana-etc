@@ -1,0 +1,15 @@
+Network services, Internet style
+
+Note that it is presently the policy of IANA to assign a single well-known
+port number for both TCP and UDP; hence, officially ports have two entries
+even if the protocol doesn't support UDP operations.
+
+The latest IANA port assignments can be fetched from:
+
+    http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt
+
+The Well Known Ports are those from 0 through 1023.
+The Registered Ports are those from 1024 through 49151
+The Dynamic and/or Private Ports are those from 49152 through 65535
+
+
